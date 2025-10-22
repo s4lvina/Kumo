@@ -1,0 +1,254 @@
+"""
+Estrategia generada por Kumo: {{ strategy.name }}
+Timeframe: {{ strategy.timeframe }}
+Generado automáticamente - No editar manualmente
+"""
+
+import backtrader as bt
+from datetime import datetime
+
+
+class {{ strategy.name | camel_case }}(bt.Strategy):
+    """
+    {{ strategy.description if strategy.description else 'Estrategia de trading algorítmico' }}
+    """
+    
+    params = (
+        {% if strategy.variables %}
+        # Variables de estrategia
+        {% for var in strategy.variables %}
+        ('{{ var.name }}', {{ var.value }}),  # {{ var.description if var.description else var.name }}
+        {% endfor %}
+        {% endif %}
+        # Tamaño de posición
+        {% if strategy.positionSizing %}
+        {% if strategy.positionSizing.type == 'fixed_lots' %}
+        ('position_size', {{ strategy.positionSizing.value if strategy.positionSizing.value is number else strategy.positionSizing.value.numericValue }}),  # Lotes fijos
+        {% elif strategy.positionSizing.type == 'percent_balance' %}
+        ('position_percent', {{ strategy.positionSizing.value if strategy.positionSizing.value is number else strategy.positionSizing.value.numericValue }}),  # % del balance
+        {% elif strategy.positionSizing.type == 'risk_percent' %}
+        ('risk_percent', {{ strategy.positionSizing.value if strategy.positionSizing.value is number else strategy.positionSizing.value.numericValue }}),  # % de riesgo
+        {% endif %}
+        {% endif %}
+        # Configuración de riesgo
+        {% if strategy.stopLoss %}
+        ('stop_loss_pips', {{ strategy.stopLoss.value if strategy.stopLoss.value is number else strategy.stopLoss.value.numericValue }}),
+        {% endif %}
+        {% if strategy.takeProfit %}
+        ('take_profit_pips', {{ strategy.takeProfit.value if strategy.takeProfit.value is number else strategy.takeProfit.value.numericValue }}),
+        {% endif %}
+    )
+    
+    def __init__(self):
+        """Inicializa indicadores y señales"""
+        {% if strategy.entryBlocks %}
+        # ========== INDICADORES DE ENTRADA ==========
+        {% for block in strategy.entryBlocks %}
+        # {{ block.name }}
+        {% for rule in block.rules %}
+        self.{{ rule.indicator.indicator | snake_case }}_{{ loop.index0 }} = bt.indicators.{{ rule.indicator.indicator | format_indicator }}(
+            self.data.close,
+            {% if rule.indicator.parameters.period %}
+            period={% if rule.indicator.parameters.period is mapping %}self.params.{{ rule.indicator.parameters.period.variableName }}{% else %}{{ rule.indicator.parameters.period }}{% endif %},
+            {% endif %}
+            {% if rule.indicator.parameters.deviation %}
+            devfactor={{ rule.indicator.parameters.deviation }},
+            {% endif %}
+        )
+        {% endfor %}
+        {% endfor %}
+        {% endif %}
+        
+        {% if strategy.exitBlocks %}
+        # ========== INDICADORES DE SALIDA ==========
+        {% for block in strategy.exitBlocks %}
+        # {{ block.name }}
+        {% for rule in block.rules %}
+        self.{{ rule.indicator.indicator | snake_case }}_exit_{{ loop.index0 }} = bt.indicators.{{ rule.indicator.indicator | format_indicator }}(
+            self.data.close,
+            {% if rule.indicator.parameters.period %}
+            period={% if rule.indicator.parameters.period is mapping %}self.params.{{ rule.indicator.parameters.period.variableName }}{% else %}{{ rule.indicator.parameters.period }}{% endif %},
+            {% endif %}
+        )
+        {% endfor %}
+        {% endfor %}
+        {% endif %}
+        
+        # Variables de control
+        self.order = None
+        self.entry_price = 0
+    
+    def notify_order(self, order):
+        """Notificación de órdenes"""
+        if order.status in [order.Submitted, order.Accepted]:
+            return
+        
+        if order.status in [order.Completed]:
+            if order.isbuy():
+                self.log(f'COMPRA EJECUTADA: Precio={order.executed.price:.2f}, Coste={order.executed.value:.2f}')
+                self.entry_price = order.executed.price
+            elif order.issell():
+                self.log(f'VENTA EJECUTADA: Precio={order.executed.price:.2f}, Coste={order.executed.value:.2f}')
+        
+        elif order.status in [order.Canceled, order.Margin, order.Rejected]:
+            self.log('Orden Cancelada/Rechazada')
+        
+        self.order = None
+    
+    def notify_trade(self, trade):
+        """Notificación de trades cerrados"""
+        if not trade.isclosed:
+            return
+        
+        self.log(f'OPERACIÓN CERRADA: Beneficio Bruto={trade.pnl:.2f}, Neto={trade.pnlcomm:.2f}')
+    
+    def next(self):
+        """Lógica principal de la estrategia"""
+        # Evitar órdenes múltiples
+        if self.order:
+            return
+        
+        {% if strategy.entryBlocks %}
+        # ========== CONDICIONES DE ENTRADA ==========
+        {% for block in strategy.entryBlocks %}
+        # {{ block.name }}
+        {% if block.rules %}
+        if ({% for rule in block.rules %}
+            self.{{ rule.indicator.indicator | snake_case }}_{{ loop.index0 }}[0] {{ rule.condition | to_operator }} {{ rule.comparisonValue.numericValue if rule.comparisonValue.type == 'number' else ('self.params.' + rule.comparisonValue.variableReference.variableName if rule.comparisonValue.type == 'variable' else '0') }}{% if not loop.last %} and{% endif %}
+            {% endfor %}):
+            
+            if not self.position:  # Si no hay posición abierta
+                {% for action in block.actions %}
+                {% if action.action == 'market_buy' %}
+                # Compra a mercado
+                {% if strategy.positionSizing and strategy.positionSizing.type == 'percent_balance' %}
+                size = (self.broker.getvalue() * self.params.position_percent / 100) / self.data.close[0]
+                self.log(f'SEÑAL DE COMPRA: Precio={self.data.close[0]:.2f}, Size={size:.2f}')
+                self.order = self.buy(size=size)
+                {% elif strategy.positionSizing and strategy.positionSizing.type == 'risk_percent' %}
+                # Calcular tamaño basado en riesgo
+                risk_amount = self.broker.getvalue() * (self.params.risk_percent / 100)
+                stop_distance = self.params.stop_loss_pips * self.data.close[0] * 0.0001 if hasattr(self.params, 'stop_loss_pips') else self.data.close[0] * 0.02
+                size = risk_amount / stop_distance
+                self.log(f'SEÑAL DE COMPRA: Precio={self.data.close[0]:.2f}, Risk={risk_amount:.2f}, Size={size:.2f}')
+                self.order = self.buy(size=size)
+                {% else %}
+                self.log(f'SEÑAL DE COMPRA: Precio={self.data.close[0]:.2f}')
+                self.order = self.buy(size=self.params.position_size if hasattr(self.params, 'position_size') else None)
+                {% endif %}
+                {% elif action.action == 'market_sell' %}
+                # Venta a mercado
+                {% if strategy.positionSizing and strategy.positionSizing.type == 'percent_balance' %}
+                size = (self.broker.getvalue() * self.params.position_percent / 100) / self.data.close[0]
+                self.log(f'SEÑAL DE VENTA: Precio={self.data.close[0]:.2f}, Size={size:.2f}')
+                self.order = self.sell(size=size)
+                {% elif strategy.positionSizing and strategy.positionSizing.type == 'risk_percent' %}
+                risk_amount = self.broker.getvalue() * (self.params.risk_percent / 100)
+                stop_distance = self.params.stop_loss_pips * self.data.close[0] * 0.0001 if hasattr(self.params, 'stop_loss_pips') else self.data.close[0] * 0.02
+                size = risk_amount / stop_distance
+                self.log(f'SEÑAL DE VENTA: Precio={self.data.close[0]:.2f}, Risk={risk_amount:.2f}, Size={size:.2f}')
+                self.order = self.sell(size=size)
+                {% else %}
+                self.log(f'SEÑAL DE VENTA: Precio={self.data.close[0]:.2f}')
+                self.order = self.sell(size=self.params.position_size if hasattr(self.params, 'position_size') else None)
+                {% endif %}
+                {% elif action.action == 'limit_buy' %}
+                # Orden límite de compra
+                self.log(f'ORDEN LÍMITE COMPRA')
+                self.order = self.buy(exectype=bt.Order.Limit, price=self.data.close[0] * 0.99)
+                {% endif %}
+                {% endfor %}
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+        
+        {% if strategy.exitBlocks %}
+        # ========== CONDICIONES DE SALIDA ==========
+        {% for block in strategy.exitBlocks %}
+        # {{ block.name }}
+        {% if block.rules %}
+        if self.position:  # Si hay posición abierta
+            if ({% for rule in block.rules %}
+                self.{{ rule.indicator.indicator | snake_case }}_exit_{{ loop.index0 }}[0] {{ rule.condition | to_operator }} {{ rule.comparisonValue.numericValue if rule.comparisonValue.type == 'number' else '0' }}{% if not loop.last %} and{% endif %}
+                {% endfor %}):
+                
+                {% for action in block.actions %}
+                {% if action.action == 'close_position' %}
+                # Cerrar posición
+                self.log(f'CERRANDO POSICIÓN: Precio={self.data.close[0]:.2f}')
+                self.order = self.close()
+                {% endif %}
+                {% endfor %}
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+        
+        {% if strategy.stopLoss or strategy.takeProfit %}
+        # ========== GESTIÓN DE RIESGO ==========
+        if self.position:
+            {% if strategy.stopLoss %}
+            # Stop Loss
+            stop_loss_price = self.entry_price - (self.params.stop_loss_pips * self.data.close[0] * 0.0001)
+            if self.data.close[0] <= stop_loss_price:
+                self.log(f'STOP LOSS ACTIVADO: Precio={self.data.close[0]:.2f}')
+                self.order = self.close()
+            {% endif %}
+            
+            {% if strategy.takeProfit %}
+            # Take Profit
+            take_profit_price = self.entry_price + (self.params.take_profit_pips * self.data.close[0] * 0.0001)
+            if self.data.close[0] >= take_profit_price:
+                self.log(f'TAKE PROFIT ACTIVADO: Precio={self.data.close[0]:.2f}')
+                self.order = self.close()
+            {% endif %}
+        {% endif %}
+    
+    def log(self, txt, dt=None):
+        """Logging de eventos"""
+        dt = dt or self.datas[0].datetime.date(0)
+        print(f'{dt.isoformat()} {txt}')
+
+
+# ========== CONFIGURACIÓN DEL BACKTEST ==========
+if __name__ == '__main__':
+    cerebro = bt.Cerebro()
+    
+    # Añadir estrategia
+    cerebro.addstrategy({{ strategy.name | camel_case }})
+    
+    # Cargar datos (ajustar según tus datos)
+    # data = bt.feeds.GenericCSVData(
+    #     dataname='tu_archivo.csv',
+    #     datetime=0,
+    #     open=1,
+    #     high=2,
+    #     low=3,
+    #     close=4,
+    #     volume=5,
+    #     openinterest=-1,
+    #     timeframe=bt.TimeFrame.{{ strategy.timeframe.upper() }}
+    # )
+    # cerebro.adddata(data)
+    
+    # Configuración inicial
+    cerebro.broker.setcash(10000.0)
+    cerebro.broker.setcommission(commission=0.001)
+    
+    # Añadir analizadores
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+    cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
+    
+    print('Valor inicial del portafolio: %.2f' % cerebro.broker.getvalue())
+    
+    # Ejecutar backtest
+    results = cerebro.run()
+    strat = results[0]
+    
+    print('Valor final del portafolio: %.2f' % cerebro.broker.getvalue())
+    print('Sharpe Ratio:', strat.analyzers.sharpe.get_analysis())
+    print('DrawDown:', strat.analyzers.drawdown.get_analysis())
+    
+    # Plotear resultados (requiere matplotlib)
+    # cerebro.plot()
+

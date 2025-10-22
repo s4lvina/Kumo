@@ -1,0 +1,16 @@
+# Kumo Backend - Dependencias de Python
+# Instalación: pip install -r requirements.txt
+
+# Framework principal
+fastapi==0.115.0
+
+# Servidor ASGI
+uvicorn[standard]==0.31.0
+
+# Variables de entorno
+python-dotenv==1.0.1
+
+# Utilidades adicionales
+pydantic==2.9.2
+pydantic-settings==2.5.2
+

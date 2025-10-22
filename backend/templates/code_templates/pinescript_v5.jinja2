@@ -1,0 +1,172 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Generado por Kumo
+
+//@version=5
+strategy("{{ strategy.name }}", overlay=true, margin_long=100, margin_short=100)
+
+// ========== PARÁMETROS DE ENTRADA ==========
+{% if strategy.variables %}
+{% for var in strategy.variables %}
+{{ var.name }} = input.int({{ var.value }}, title="{{ var.description if var.description else var.name }}", minval=1)
+{% endfor %}
+{% endif %}
+
+// Position Sizing
+{% if strategy.positionSizing %}
+{% if strategy.positionSizing.type == 'fixed_lots' %}
+positionSize = input.float({{ strategy.positionSizing.value if strategy.positionSizing.value is number else strategy.positionSizing.value.numericValue }}, title="Position Size (Lots)", minval=0.01)
+{% elif strategy.positionSizing.type == 'percent_balance' %}
+positionPercent = input.float({{ strategy.positionSizing.value if strategy.positionSizing.value is number else strategy.positionSizing.value.numericValue }}, title="Position Size (% Balance)", minval=0.1, maxval=100)
+{% elif strategy.positionSizing.type == 'risk_percent' %}
+riskPercent = input.float({{ strategy.positionSizing.value if strategy.positionSizing.value is number else strategy.positionSizing.value.numericValue }}, title="Risk (% Balance)", minval=0.1, maxval=10)
+{% endif %}
+{% endif %}
+
+{% if strategy.stopLoss %}
+stopLossPips = input.float({{ strategy.stopLoss.value if strategy.stopLoss.value is number else strategy.stopLoss.value.numericValue }}, title="Stop Loss (Pips)", minval=0)
+{% endif %}
+{% if strategy.takeProfit %}
+takeProfitPips = input.float({{ strategy.takeProfit.value if strategy.takeProfit.value is number else strategy.takeProfit.value.numericValue }}, title="Take Profit (Pips)", minval=0)
+{% endif %}
+
+// ========== CÁLCULO DE INDICADORES ==========
+{% if strategy.entryBlocks %}
+{% for block in strategy.entryBlocks %}
+// {{ block.name }}
+{% for rule in block.rules %}
+{% if rule.indicator.indicator == 'rsi' %}
+{{ rule.indicator.indicator }}_{{ loop.index0 }} = ta.rsi(close, {% if rule.indicator.parameters.period is mapping %}{{ rule.indicator.parameters.period.variableName }}{% else %}{{ rule.indicator.parameters.period }}{% endif %})
+{% elif rule.indicator.indicator == 'sma' %}
+{{ rule.indicator.indicator }}_{{ loop.index0 }} = ta.sma(close, {% if rule.indicator.parameters.period is mapping %}{{ rule.indicator.parameters.period.variableName }}{% else %}{{ rule.indicator.parameters.period }}{% endif %})
+{% elif rule.indicator.indicator == 'ema' %}
+{{ rule.indicator.indicator }}_{{ loop.index0 }} = ta.ema(close, {% if rule.indicator.parameters.period is mapping %}{{ rule.indicator.parameters.period.variableName }}{% else %}{{ rule.indicator.parameters.period }}{% endif %})
+{% elif rule.indicator.indicator == 'macd' %}
+[{{ rule.indicator.indicator }}_line_{{ loop.index0 }}, {{ rule.indicator.indicator }}_signal_{{ loop.index0 }}, {{ rule.indicator.indicator }}_hist_{{ loop.index0 }}] = ta.macd(close, {{ rule.indicator.parameters.fast_period }}, {{ rule.indicator.parameters.slow_period }}, {{ rule.indicator.parameters.signal_period }})
+{{ rule.indicator.indicator }}_{{ loop.index0 }} = {{ rule.indicator.indicator }}_line_{{ loop.index0 }}
+{% elif rule.indicator.indicator == 'bollinger' %}
+[{{ rule.indicator.indicator }}_middle_{{ loop.index0 }}, {{ rule.indicator.indicator }}_upper_{{ loop.index0 }}, {{ rule.indicator.indicator }}_lower_{{ loop.index0 }}] = ta.bb(close, {{ rule.indicator.parameters.period }}, {{ rule.indicator.parameters.deviation }})
+{{ rule.indicator.indicator }}_{{ loop.index0 }} = {{ rule.indicator.indicator }}_middle_{{ loop.index0 }}
+{% elif rule.indicator.indicator == 'stochastic' %}
+{{ rule.indicator.indicator }}_{{ loop.index0 }} = ta.stoch(close, high, low, {{ rule.indicator.parameters.k_period }})
+{% elif rule.indicator.indicator == 'atr' %}
+{{ rule.indicator.indicator }}_{{ loop.index0 }} = ta.atr({% if rule.indicator.parameters.period is mapping %}{{ rule.indicator.parameters.period.variableName }}{% else %}{{ rule.indicator.parameters.period }}{% endif %})
+{% elif rule.indicator.indicator == 'adx' %}
+[{{ rule.indicator.indicator }}_{{ loop.index0 }}, {{ rule.indicator.indicator }}_plus_{{ loop.index0 }}, {{ rule.indicator.indicator }}_minus_{{ loop.index0 }}] = ta.dmi({{ rule.indicator.parameters.period }}, {{ rule.indicator.parameters.period }})
+{% else %}
+{{ rule.indicator.indicator }}_{{ loop.index0 }} = ta.rsi(close, 14)  // Indicador por defecto
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+{% if strategy.exitBlocks %}
+// Indicadores de salida
+{% for block in strategy.exitBlocks %}
+// {{ block.name }}
+{% for rule in block.rules %}
+{% if rule.indicator.indicator == 'rsi' %}
+{{ rule.indicator.indicator }}_exit_{{ loop.index0 }} = ta.rsi(close, {% if rule.indicator.parameters.period is mapping %}{{ rule.indicator.parameters.period.variableName }}{% else %}{{ rule.indicator.parameters.period }}{% endif %})
+{% elif rule.indicator.indicator == 'sma' %}
+{{ rule.indicator.indicator }}_exit_{{ loop.index0 }} = ta.sma(close, {% if rule.indicator.parameters.period is mapping %}{{ rule.indicator.parameters.period.variableName }}{% else %}{{ rule.indicator.parameters.period }}{% endif %})
+{% elif rule.indicator.indicator == 'ema' %}
+{{ rule.indicator.indicator }}_exit_{{ loop.index0 }} = ta.ema(close, {% if rule.indicator.parameters.period is mapping %}{{ rule.indicator.parameters.period.variableName }}{% else %}{{ rule.indicator.parameters.period }}{% endif %})
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+// ========== CONDICIONES DE ENTRADA ==========
+{% if strategy.entryBlocks %}
+{% for block in strategy.entryBlocks %}
+// {{ block.name }}
+{% if block.rules %}
+longCondition_{{ loop.index0 }} = {% for rule in block.rules %}{{ rule.indicator.indicator }}_{{ loop.index0 }} {{ rule.condition | to_operator }} {{ rule.comparisonValue.numericValue if rule.comparisonValue.type == 'number' else rule.comparisonValue.variableReference.variableName }}{% if not loop.last %} and {% endif %}{% endfor %}
+
+{% for action in block.actions %}
+{% if action.action == 'market_buy' %}
+if (longCondition_{{ loop.parent.index0 }})
+    {% if strategy.positionSizing and strategy.positionSizing.type == 'percent_balance' %}
+    // Position sizing basado en % del balance
+    qty = (strategy.equity * positionPercent / 100) / close
+    strategy.entry("Long_{{ loop.parent.index0 }}", strategy.long, qty=qty{% if strategy.stopLoss or strategy.takeProfit %}, stop=close - (stopLossPips * syminfo.mintick * 10), limit=close + (takeProfitPips * syminfo.mintick * 10){% endif %})
+    {% elif strategy.positionSizing and strategy.positionSizing.type == 'risk_percent' %}
+    // Position sizing basado en riesgo
+    riskAmount = strategy.equity * (riskPercent / 100)
+    stopDistance = {% if strategy.stopLoss %}stopLossPips{% else %}50{% endif %} * syminfo.mintick * 10
+    qty = riskAmount / stopDistance
+    strategy.entry("Long_{{ loop.parent.index0 }}", strategy.long, qty=qty{% if strategy.stopLoss or strategy.takeProfit %}, stop=close - (stopLossPips * syminfo.mintick * 10), limit=close + (takeProfitPips * syminfo.mintick * 10){% endif %})
+    {% else %}
+    strategy.entry("Long_{{ loop.parent.index0 }}", strategy.long{% if strategy.stopLoss or strategy.takeProfit %}, stop=close - (stopLossPips * syminfo.mintick * 10), limit=close + (takeProfitPips * syminfo.mintick * 10){% endif %})
+    {% endif %}
+{% elif action.action == 'market_sell' %}
+if (longCondition_{{ loop.parent.index0 }})
+    {% if strategy.positionSizing and strategy.positionSizing.type == 'percent_balance' %}
+    qty = (strategy.equity * positionPercent / 100) / close
+    strategy.entry("Short_{{ loop.parent.index0 }}", strategy.short, qty=qty{% if strategy.stopLoss or strategy.takeProfit %}, stop=close + (stopLossPips * syminfo.mintick * 10), limit=close - (takeProfitPips * syminfo.mintick * 10){% endif %})
+    {% elif strategy.positionSizing and strategy.positionSizing.type == 'risk_percent' %}
+    riskAmount = strategy.equity * (riskPercent / 100)
+    stopDistance = {% if strategy.stopLoss %}stopLossPips{% else %}50{% endif %} * syminfo.mintick * 10
+    qty = riskAmount / stopDistance
+    strategy.entry("Short_{{ loop.parent.index0 }}", strategy.short, qty=qty{% if strategy.stopLoss or strategy.takeProfit %}, stop=close + (stopLossPips * syminfo.mintick * 10), limit=close - (takeProfitPips * syminfo.mintick * 10){% endif %})
+    {% else %}
+    strategy.entry("Short_{{ loop.parent.index0 }}", strategy.short{% if strategy.stopLoss or strategy.takeProfit %}, stop=close + (stopLossPips * syminfo.mintick * 10), limit=close - (takeProfitPips * syminfo.mintick * 10){% endif %})
+    {% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+// ========== CONDICIONES DE SALIDA ==========
+{% if strategy.exitBlocks %}
+{% for block in strategy.exitBlocks %}
+// {{ block.name }}
+{% if block.rules %}
+exitCondition_{{ loop.index0 }} = {% for rule in block.rules %}{{ rule.indicator.indicator }}_exit_{{ loop.index0 }} {{ rule.condition | to_operator }} {{ rule.comparisonValue.numericValue if rule.comparisonValue.type == 'number' else '0' }}{% if not loop.last %} and {% endif %}{% endfor %}
+
+{% for action in block.actions %}
+{% if action.action == 'close_position' %}
+if (exitCondition_{{ loop.parent.index0 }})
+    strategy.close_all("Exit_{{ loop.parent.index0 }}")
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+// ========== VISUALIZACIÓN ==========
+{% if strategy.entryBlocks %}
+{% for block in strategy.entryBlocks %}
+{% for rule in block.rules %}
+{% if rule.indicator.indicator in ['sma', 'ema'] %}
+plot({{ rule.indicator.indicator }}_{{ loop.index0 }}, color=color.new(color.blue, 0), linewidth=2, title="{{ rule.indicator.indicator | upper }} {{ rule.indicator.parameters.period }}")
+{% elif rule.indicator.indicator == 'bollinger' %}
+plot({{ rule.indicator.indicator }}_upper_{{ loop.index0 }}, color=color.new(color.blue, 0), title="BB Upper")
+plot({{ rule.indicator.indicator }}_middle_{{ loop.index0 }}, color=color.new(color.orange, 0), title="BB Middle")
+plot({{ rule.indicator.indicator }}_lower_{{ loop.index0 }}, color=color.new(color.blue, 0), title="BB Lower")
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+// Señales visuales
+{% if strategy.entryBlocks %}
+{% for block in strategy.entryBlocks %}
+{% for action in block.actions %}
+{% if action.action == 'market_buy' %}
+plotshape(longCondition_{{ loop.parent.parent.index0 }}, title="Señal Compra", location=location.belowbar, color=color.new(color.green, 0), style=shape.labelup, text="BUY")
+{% elif action.action == 'market_sell' %}
+plotshape(longCondition_{{ loop.parent.parent.index0 }}, title="Señal Venta", location=location.abovebar, color=color.new(color.red, 0), style=shape.labeldown, text="SELL")
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+// ========== INFORMACIÓN DE LA ESTRATEGIA ==========
+// Nombre: {{ strategy.name }}
+// Timeframe: {{ strategy.timeframe }}
+{% if strategy.description %}
+// Descripción: {{ strategy.description }}
+{% endif %}
+// Generado automáticamente por Kumo
+

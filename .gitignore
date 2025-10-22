@@ -1,0 +1,178 @@
+# ============================================
+# KUMO - Trading Strategy Platform
+# Git Ignore Configuration
+# ============================================
+
+# ============================================
+# PYTHON / BACKEND
+# ============================================
+
+# Virtual Environment
+backend/venv/
+backend/.venv/
+backend/env/
+backend/.env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Python cache
+backend/__pycache__/
+backend/**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Environment variables
+backend/.env
+backend/.env.local
+backend/.env.production
+.env
+.env.local
+
+# Testing
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+backend/.tox/
+backend/.nox/
+
+# Distribution / packaging
+backend/dist/
+backend/build/
+backend/*.egg-info/
+backend/.eggs/
+
+# Jupyter Notebook
+backend/.ipynb_checkpoints
+
+# pyenv
+backend/.python-version
+
+# Logs
+backend/*.log
+backend/logs/
+
+# IDEs
+backend/.vscode/
+backend/.idea/
+
+# ============================================
+# FRONTEND / NODE
+# ============================================
+
+# Dependencies
+frontend/node_modules/
+node_modules/
+
+# Production build
+frontend/dist/
+frontend/build/
+
+# Environment variables
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+frontend/lerna-debug.log*
+
+# Testing
+frontend/coverage/
+frontend/.nyc_output
+
+# Temporary files
+frontend/.DS_Store
+frontend/.cache/
+frontend/.parcel-cache/
+frontend/.vite/
+frontend/.turbo/
+
+# IDEs
+frontend/.vscode/
+frontend/.idea/
+frontend/*.swp
+frontend/*.swo
+frontend/*~
+
+# ============================================
+# GENERAL
+# ============================================
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.cache
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Backups
+*.backup
+backups/
+
+# Sensitive data
+secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Testing artifacts
+test-results/
+screenshots/
+videos/
+
+# Generated documentation
+docs/_build/
+site/
+
+# ============================================
+# PROJECT SPECIFIC
+# ============================================
+
+# Test files temporales
+backend/test_*.json
+backend/test_*.py
+
+# Archivos de configuración local
+local_config.json
+local_settings.py
+
+# Datos de prueba
+test_data/
+sample_data/
+
+# Estrategias exportadas
+exports/
+output/
+generated_code/

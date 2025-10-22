@@ -1,0 +1,265 @@
+//+------------------------------------------------------------------+
+//|                                    {{ strategy.name | camel_case }}.mq5 |
+//|                                      Generado por Kumo           |
+//|                                      Trading Strategy            |
+//+------------------------------------------------------------------+
+#property copyright "Generado por Kumo"
+#property link      "https://kumo.trading"
+#property version   "1.00"
+#property strict
+
+//--- Input parameters
+{% if strategy.variables %}
+{% for var in strategy.variables %}
+input {{ 'double' if var.type == 'number' else 'int' }} {{ var.name }} = {{ var.value }};  // {{ var.description if var.description else var.name }}
+{% endfor %}
+{% endif %}
+
+//--- Position Sizing
+{% if strategy.positionSizing %}
+{% if strategy.positionSizing.type == 'fixed_lots' %}
+input double LotSize = {{ strategy.positionSizing.value if strategy.positionSizing.value is number else strategy.positionSizing.value.numericValue }};  // Lotes fijos
+{% elif strategy.positionSizing.type == 'percent_balance' %}
+input double PositionPercent = {{ strategy.positionSizing.value if strategy.positionSizing.value is number else strategy.positionSizing.value.numericValue }};  // % del balance
+{% elif strategy.positionSizing.type == 'risk_percent' %}
+input double RiskPercent = {{ strategy.positionSizing.value if strategy.positionSizing.value is number else strategy.positionSizing.value.numericValue }};  // % de riesgo
+{% endif %}
+{% else %}
+input double LotSize = 0.1;  // Tamaño de lote por defecto
+{% endif %}
+
+{% if strategy.stopLoss %}
+input double StopLossPips = {{ strategy.stopLoss.value if strategy.stopLoss.value is number else strategy.stopLoss.value.numericValue }};  // Stop Loss en pips
+{% endif %}
+{% if strategy.takeProfit %}
+input double TakeProfitPips = {{ strategy.takeProfit.value if strategy.takeProfit.value is number else strategy.takeProfit.value.numericValue }};  // Take Profit en pips
+{% endif %}
+
+input int MagicNumber = 123456;    // Magic number único
+
+//--- Global variables
+{% if strategy.entryBlocks %}
+{% for block in strategy.entryBlocks %}
+{% for rule in block.rules %}
+int handle_{{ rule.indicator.indicator }}_{{ loop.index0 }};
+double {{ rule.indicator.indicator }}_buffer_{{ loop.index0 }}[];
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+    Print("Inicializando {{ strategy.name }}...");
+    
+    {% if strategy.entryBlocks %}
+    //--- Crear handles de indicadores
+    {% for block in strategy.entryBlocks %}
+    // {{ block.name }}
+    {% for rule in block.rules %}
+    {% if rule.indicator.indicator == 'rsi' %}
+    handle_{{ rule.indicator.indicator }}_{{ loop.index0 }} = iRSI(_Symbol, PERIOD_CURRENT, {% if rule.indicator.parameters.period is mapping %}{{ rule.indicator.parameters.period.variableName }}{% else %}{{ rule.indicator.parameters.period }}{% endif %}, PRICE_CLOSE);
+    {% elif rule.indicator.indicator == 'sma' %}
+    handle_{{ rule.indicator.indicator }}_{{ loop.index0 }} = iMA(_Symbol, PERIOD_CURRENT, {% if rule.indicator.parameters.period is mapping %}{{ rule.indicator.parameters.period.variableName }}{% else %}{{ rule.indicator.parameters.period }}{% endif %}, 0, MODE_SMA, PRICE_CLOSE);
+    {% elif rule.indicator.indicator == 'ema' %}
+    handle_{{ rule.indicator.indicator }}_{{ loop.index0 }} = iMA(_Symbol, PERIOD_CURRENT, {% if rule.indicator.parameters.period is mapping %}{{ rule.indicator.parameters.period.variableName }}{% else %}{{ rule.indicator.parameters.period }}{% endif %}, 0, MODE_EMA, PRICE_CLOSE);
+    {% elif rule.indicator.indicator == 'macd' %}
+    handle_{{ rule.indicator.indicator }}_{{ loop.index0 }} = iMACD(_Symbol, PERIOD_CURRENT, {{ rule.indicator.parameters.fast_period }}, {{ rule.indicator.parameters.slow_period }}, {{ rule.indicator.parameters.signal_period }}, PRICE_CLOSE);
+    {% elif rule.indicator.indicator == 'bollinger' %}
+    handle_{{ rule.indicator.indicator }}_{{ loop.index0 }} = iBands(_Symbol, PERIOD_CURRENT, {{ rule.indicator.parameters.period }}, 0, {{ rule.indicator.parameters.deviation }}, PRICE_CLOSE);
+    {% elif rule.indicator.indicator == 'stochastic' %}
+    handle_{{ rule.indicator.indicator }}_{{ loop.index0 }} = iStochastic(_Symbol, PERIOD_CURRENT, {{ rule.indicator.parameters.k_period }}, {{ rule.indicator.parameters.d_period }}, {{ rule.indicator.parameters.slowing }}, MODE_SMA, STO_LOWHIGH);
+    {% else %}
+    handle_{{ rule.indicator.indicator }}_{{ loop.index0 }} = iRSI(_Symbol, PERIOD_CURRENT, 14, PRICE_CLOSE);  // Default
+    {% endif %}
+    
+    if(handle_{{ rule.indicator.indicator }}_{{ loop.index0 }} == INVALID_HANDLE)
+    {
+        Print("Error creando handle para {{ rule.indicator.indicator }}");
+        return(INIT_FAILED);
+    }
+    ArraySetAsSeries({{ rule.indicator.indicator }}_buffer_{{ loop.index0 }}, true);
+    {% endfor %}
+    {% endfor %}
+    {% endif %}
+    
+    Print("{{ strategy.name }} inicializado correctamente");
+    return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                 |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+    {% if strategy.entryBlocks %}
+    //--- Liberar handles de indicadores
+    {% for block in strategy.entryBlocks %}
+    {% for rule in block.rules %}
+    IndicatorRelease(handle_{{ rule.indicator.indicator }}_{{ loop.index0 }});
+    {% endfor %}
+    {% endfor %}
+    {% endif %}
+    
+    Print("{{ strategy.name }} finalizado");
+}
+
+//+------------------------------------------------------------------+
+//| Expert tick function                                             |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+    {% if strategy.entryBlocks %}
+    //--- Copiar datos de indicadores
+    {% for block in strategy.entryBlocks %}
+    {% for rule in block.rules %}
+    if(CopyBuffer(handle_{{ rule.indicator.indicator }}_{{ loop.index0 }}, 0, 0, 3, {{ rule.indicator.indicator }}_buffer_{{ loop.index0 }}) < 0)
+    {
+        Print("Error copiando buffer de {{ rule.indicator.indicator }}");
+        return;
+    }
+    {% endfor %}
+    {% endfor %}
+    {% endif %}
+    
+    //--- Verificar si hay posiciones abiertas
+    bool hasPosition = false;
+    for(int i = PositionsTotal() - 1; i >= 0; i--)
+    {
+        if(PositionGetSymbol(i) == _Symbol && PositionGetInteger(POSITION_MAGIC) == MagicNumber)
+        {
+            hasPosition = true;
+            break;
+        }
+    }
+    
+    {% if strategy.entryBlocks %}
+    //========== CONDICIONES DE ENTRADA ==========
+    {% for block in strategy.entryBlocks %}
+    // {{ block.name }}
+    {% if block.rules %}
+    if(!hasPosition && 
+       {% for rule in block.rules %}
+       {{ rule.indicator.indicator }}_buffer_{{ loop.index0 }}[0] {{ rule.condition | to_operator }} {{ rule.comparisonValue.numericValue if rule.comparisonValue.type == 'number' else rule.comparisonValue.variableReference.variableName }}{% if not loop.last %} &&{% endif %}
+       {% endfor %})
+    {
+        {% for action in block.actions %}
+        {% if action.action == 'market_buy' %}
+        // Abrir orden de compra
+        double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+        double sl = {% if strategy.stopLoss %}NormalizeDouble(ask - (StopLossPips * _Point * 10), _Digits){% else %}0{% endif %};
+        double tp = {% if strategy.takeProfit %}NormalizeDouble(ask + (TakeProfitPips * _Point * 10), _Digits){% else %}0{% endif %};
+        
+        // Calcular tamaño de posición
+        double volume = 0.1;  // Por defecto
+        {% if strategy.positionSizing %}
+        {% if strategy.positionSizing.type == 'fixed_lots' %}
+        volume = LotSize;
+        {% elif strategy.positionSizing.type == 'percent_balance' %}
+        double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+        volume = NormalizeDouble((balance * PositionPercent / 100) / (ask * SymbolInfoDouble(_Symbol, SYMBOL_TRADE_CONTRACT_SIZE)), 2);
+        {% elif strategy.positionSizing.type == 'risk_percent' %}
+        double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+        double riskAmount = balance * (RiskPercent / 100);
+        double stopDistance = {% if strategy.stopLoss %}StopLossPips{% else %}50{% endif %} * _Point * 10;
+        volume = NormalizeDouble(riskAmount / (stopDistance * SymbolInfoDouble(_Symbol, SYMBOL_TRADE_CONTRACT_SIZE)), 2);
+        {% endif %}
+        {% else %}
+        volume = LotSize;
+        {% endif %}
+        
+        MqlTradeRequest request = {};
+        MqlTradeResult result = {};
+        
+        request.action = TRADE_ACTION_DEAL;
+        request.symbol = _Symbol;
+        request.volume = volume;
+        request.type = ORDER_TYPE_BUY;
+        request.price = ask;
+        request.sl = sl;
+        request.tp = tp;
+        request.magic = MagicNumber;
+        request.comment = "{{ strategy.name }} - Compra";
+        
+        if(OrderSend(request, result))
+        {
+            Print("Orden BUY ejecutada: Ticket=", result.order, ", Volume=", volume);
+        }
+        else
+        {
+            Print("Error enviando orden BUY: ", GetLastError());
+        }
+        {% elif action.action == 'market_sell' %}
+        // Abrir orden de venta
+        double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+        double sl = {% if strategy.stopLoss %}NormalizeDouble(bid + (StopLossPips * _Point * 10), _Digits){% else %}0{% endif %};
+        double tp = {% if strategy.takeProfit %}NormalizeDouble(bid - (TakeProfitPips * _Point * 10), _Digits){% else %}0{% endif %};
+        
+        MqlTradeRequest request = {};
+        MqlTradeResult result = {};
+        
+        request.action = TRADE_ACTION_DEAL;
+        request.symbol = _Symbol;
+        request.volume = LotSize;
+        request.type = ORDER_TYPE_SELL;
+        request.price = bid;
+        request.sl = sl;
+        request.tp = tp;
+        request.magic = MagicNumber;
+        request.comment = "{{ strategy.name }} - Venta";
+        
+        if(OrderSend(request, result))
+        {
+            Print("Orden SELL ejecutada: Ticket=", result.order);
+        }
+        else
+        {
+            Print("Error enviando orden SELL: ", GetLastError());
+        }
+        {% endif %}
+        {% endfor %}
+    }
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+    
+    {% if strategy.exitBlocks %}
+    //========== CONDICIONES DE SALIDA ==========
+    {% for block in strategy.exitBlocks %}
+    // {{ block.name }}
+    {% if block.rules %}
+    if(hasPosition)
+    {
+        // Implementar condiciones de salida personalizadas
+        {% for action in block.actions %}
+        {% if action.action == 'close_position' %}
+        // Cerrar todas las posiciones
+        for(int i = PositionsTotal() - 1; i >= 0; i--)
+        {
+            if(PositionGetSymbol(i) == _Symbol && PositionGetInteger(POSITION_MAGIC) == MagicNumber)
+            {
+                MqlTradeRequest request = {};
+                MqlTradeResult result = {};
+                
+                request.action = TRADE_ACTION_DEAL;
+                request.symbol = _Symbol;
+                request.volume = PositionGetDouble(POSITION_VOLUME);
+                request.type = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? ORDER_TYPE_SELL : ORDER_TYPE_BUY;
+                request.price = (request.type == ORDER_TYPE_SELL) ? SymbolInfoDouble(_Symbol, SYMBOL_BID) : SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+                request.magic = MagicNumber;
+                request.comment = "{{ strategy.name }} - Cierre";
+                
+                OrderSend(request, result);
+            }
+        }
+        {% endif %}
+        {% endfor %}
+    }
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+}
+//+------------------------------------------------------------------+
+
