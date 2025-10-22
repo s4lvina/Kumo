@@ -14,3 +14,13 @@ python-dotenv==1.0.1
 pydantic==2.9.2
 pydantic-settings==2.5.2
 
+# Plantillas para generación de código
+jinja2==3.1.4
+pyyaml==6.0.2
+
+# Cálculos numéricos para backtesting
+numpy==1.26.4
+
+# API de datos históricos
+requests==2.31.0
+

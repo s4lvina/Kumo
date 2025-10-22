@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { PenTool, Plus, Settings, Play, Trash2, ChevronDown, ChevronRight, Code2, Loader2, Save, FileDown } from 'lucide-react'
+import { PenTool, Plus, Settings, Play, Trash2, ChevronDown, ChevronRight, Code2, Loader2, Save } from 'lucide-react'
 import { INDICATOR_CATEGORIES } from '@/data/indicators'
 import { CONDITIONS } from '@/data/conditions'
 import { ACTION_CATEGORIES, Action } from '@/data/actions'
@@ -29,6 +30,7 @@ import { saveStrategy, updateStrategy, StoredStrategy } from '@/lib/strategyStor
  * Permite crear estrategias de trading personalizadas
  */
 export default function Designer() {
+  const navigate = useNavigate()
   const [editingStrategyId, setEditingStrategyId] = useState<number | null>(null)
   const [strategyName, setStrategyName] = useState('Nueva Estrategia')
   const [timeframe, setTimeframe] = useState('1h')
@@ -720,7 +722,17 @@ export default function Designer() {
             )}
           </div>
           
-          <Button className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700">
+          <Button 
+            onClick={() => {
+              // Guardar estrategia si no está guardada antes de ir a backtesting
+              if (!editingStrategyId && entryBlocks.length > 0) {
+                handleSaveStrategy()
+              }
+              navigate('/backtesting')
+            }}
+            disabled={entryBlocks.length === 0}
+            className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700"
+          >
             <Play className="h-4 w-4 mr-2" />
             Ejecutar Backtest
           </Button>

@@ -119,7 +119,7 @@ class {{ strategy.name | camel_case }}(bt.Strategy):
             
             if not self.position:  # Si no hay posición abierta
                 {% for action in block.actions %}
-                {% if action.action == 'market_buy' %}
+                {% if action.type == 'buy_market' %}
                 # Compra a mercado
                 {% if strategy.positionSizing and strategy.positionSizing.type == 'percent_balance' %}
                 size = (self.broker.getvalue() * self.params.position_percent / 100) / self.data.close[0]
@@ -136,7 +136,7 @@ class {{ strategy.name | camel_case }}(bt.Strategy):
                 self.log(f'SEÑAL DE COMPRA: Precio={self.data.close[0]:.2f}')
                 self.order = self.buy(size=self.params.position_size if hasattr(self.params, 'position_size') else None)
                 {% endif %}
-                {% elif action.action == 'market_sell' %}
+                {% elif action.type == 'sell_market' %}
                 # Venta a mercado
                 {% if strategy.positionSizing and strategy.positionSizing.type == 'percent_balance' %}
                 size = (self.broker.getvalue() * self.params.position_percent / 100) / self.data.close[0]
@@ -152,7 +152,7 @@ class {{ strategy.name | camel_case }}(bt.Strategy):
                 self.log(f'SEÑAL DE VENTA: Precio={self.data.close[0]:.2f}')
                 self.order = self.sell(size=self.params.position_size if hasattr(self.params, 'position_size') else None)
                 {% endif %}
-                {% elif action.action == 'limit_buy' %}
+                {% elif action.type == 'buy_limit' %}
                 # Orden límite de compra
                 self.log(f'ORDEN LÍMITE COMPRA')
                 self.order = self.buy(exectype=bt.Order.Limit, price=self.data.close[0] * 0.99)
@@ -173,7 +173,7 @@ class {{ strategy.name | camel_case }}(bt.Strategy):
                 {% endfor %}):
                 
                 {% for action in block.actions %}
-                {% if action.action == 'close_position' %}
+                {% if action.type == 'close_position' %}
                 # Cerrar posición
                 self.log(f'CERRANDO POSICIÓN: Precio={self.data.close[0]:.2f}')
                 self.order = self.close()

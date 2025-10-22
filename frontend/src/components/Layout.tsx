@@ -5,7 +5,8 @@ import {
   Sparkles, 
   PenTool, 
   GraduationCap,
-  Cloud 
+  Cloud,
+  BarChart3
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 // import ThemeToggle from './ThemeToggle'
@@ -35,6 +36,12 @@ const navigationItems = [
     label: 'Mis Estrategias',
     icon: LayoutDashboard,
     description: 'Gestiona tus estrategias'
+  },
+  {
+    path: '/backtesting',
+    label: 'Backtesting',
+    icon: BarChart3,
+    description: 'Prueba con datos históricos'
   },
   {
     path: '/academy',
@@ -163,7 +170,7 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Barra de navegación inferior - Mobile */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-border lg:hidden">
-        <div className="grid h-16 grid-cols-4 gap-1 px-2">
+        <div className="grid h-16 grid-cols-5 gap-1 px-2">
           {navigationItems.map((item) => {
             const isActive = location.pathname === item.path
             const Icon = item.icon
