@@ -192,6 +192,10 @@ function BlockContent({ blockId, onBack }: BlockContentProps) {
     return <AdvancedIndicatorsBlock onBack={onBack} />
   }
   
+  if (blockId === 3) {
+    return <BacktestingOptimizationBlock onBack={onBack} />
+  }
+  
   return (
     <div>
       <Button onClick={onBack} variant="outline" className="mb-4">
@@ -2879,6 +2883,585 @@ function AdvancedIndicatorsBlock({ onBack }: { onBack: () => void }) {
                     Siguiente Bloque: Estrategias de Trading
                   </Button>
                   <Button variant="outline" className="border-orange-400 text-orange-400 hover:bg-orange-500/10" onClick={onBack}>
+                    Volver a Bloques
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Columna lateral - Índice de lecciones */}
+        <div className="lg:col-span-1">
+          <Card className="bg-white dark:bg-surface sticky top-4">
+            <CardHeader>
+              <CardTitle className="text-base">Índice del Bloque</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {lessons.map((lesson) => (
+                <button
+                  key={lesson.id}
+                  onClick={() => toggleLesson(lesson.id)}
+                  className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-background/50 transition-colors text-left"
+                >
+                  <div className="mt-0.5">
+                    {completedLessons.includes(lesson.id) ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-400" />
+                    ) : (
+                      <div className="h-5 w-5 rounded-full border-2 border-slate-300 dark:border-slate-600" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900 dark:text-foreground">{lesson.title}</p>
+                    <p className="text-xs text-muted-foreground">{lesson.duration}</p>
+                  </div>
+                </button>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Bloque 3: Backtesting y Optimización
+ */
+function BacktestingOptimizationBlock({ onBack }: { onBack: () => void }) {
+  const [completedLessons, setCompletedLessons] = useState<number[]>([])
+  const [activeLesson, setActiveLesson] = useState<number>(1)
+
+  const lessons = [
+    { id: 1, title: 'Fundamentos del Backtesting', duration: '12 min' },
+    { id: 2, title: 'Preparación de Datos Históricos', duration: '14 min' },
+    { id: 3, title: 'Métricas de Evaluación', duration: '15 min' },
+    { id: 4, title: 'Análisis de Curva de Equity', duration: '13 min' },
+    { id: 5, title: 'Optimización de Parámetros', duration: '16 min' },
+    { id: 6, title: 'Evitando Overfitting', duration: '14 min' },
+    { id: 7, title: 'Walk-Forward Analysis', duration: '15 min' },
+    { id: 8, title: 'Monte Carlo Simulation', duration: '17 min' },
+    { id: 9, title: 'Robustez y Sensibilidad', duration: '14 min' },
+    { id: 10, title: 'Out-of-Sample Testing', duration: '13 min' },
+    { id: 11, title: 'Forward Testing', duration: '12 min' },
+    { id: 12, title: 'Optimización Multi-Objetivo', duration: '15 min' },
+    { id: 13, title: 'Análisis de Drawdown', duration: '14 min' },
+    { id: 14, title: 'Validación Estadística', duration: '16 min' },
+    { id: 15, title: 'De Backtest a Producción', duration: '15 min' },
+  ]
+
+  const toggleLesson = (id: number) => {
+    setActiveLesson(id)
+    if (!completedLessons.includes(id)) {
+      setCompletedLessons(prev => [...prev, id])
+    }
+  }
+
+  const goToNextLesson = () => {
+    if (activeLesson < lessons.length) {
+      setActiveLesson(activeLesson + 1)
+    }
+  }
+
+  const goToPreviousLesson = () => {
+    if (activeLesson > 1) {
+      setActiveLesson(activeLesson - 1)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header con botón de volver */}
+      <div className="flex items-center gap-4">
+        <Button onClick={onBack} variant="outline" size="sm" className="border-slate-300 dark:border-slate-700">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Volver
+        </Button>
+        <div className="flex-1">
+          <h2 className="text-2xl font-bold flex items-center gap-3">
+            <Code className="h-7 w-7 text-purple-400" />
+            Backtesting y Optimización
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Valida y optimiza tus estrategias con metodología profesional
+          </p>
+        </div>
+      </div>
+
+      {/* Progreso del bloque */}
+      <Card className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30">
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium">Progreso del Bloque</span>
+            <span className="text-sm font-bold text-purple-400">
+              {completedLessons.length} / {lessons.length} lecciones
+            </span>
+          </div>
+          <div className="w-full bg-background/50 rounded-full h-2">
+            <div 
+              className="bg-gradient-to-r from-purple-500 to-pink-600 rounded-full h-2 transition-all duration-300" 
+              style={{ width: `${(completedLessons.length / lessons.length) * 100}%` }}
+            ></div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Pestañas de lecciones */}
+      <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
+        {lessons.map((lesson) => (
+          <button
+            key={lesson.id}
+            onClick={() => toggleLesson(lesson.id)}
+            className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              activeLesson === lesson.id
+                ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg'
+                : 'bg-surface hover:bg-slate-700 text-gray-400 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {completedLessons.includes(lesson.id) && (
+                <CheckCircle2 className="h-4 w-4 text-green-400" />
+              )}
+              <span className="whitespace-nowrap">
+                {lesson.id}. {lesson.title}
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Contenido principal */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Columna principal - Contenido */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Lección 1: Fundamentos del Backtesting */}
+          {activeLesson === 1 && (
+            <Card className="bg-white dark:bg-surface">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <span className="text-purple-400">1.</span>
+                  Fundamentos del Backtesting
+                </CardTitle>
+                <CardDescription>La base científica del trading algorítmico</CardDescription>
+              </CardHeader>
+              <CardContent className="prose dark:prose-invert max-w-none">
+                <div className="space-y-6">
+                  <p className="text-muted-foreground leading-relaxed">
+                    El <strong className="text-foreground">backtesting</strong> es el proceso de probar una estrategia de trading 
+                    contra datos históricos para evaluar su rendimiento. Es la diferencia entre operar con evidencia estadística 
+                    y operar basándose en intuición o esperanza.
+                  </p>
+
+                  <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+                    <p className="text-sm text-purple-400 font-semibold mb-2">🔬 Definición Científica</p>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      Backtesting es una simulación retroactiva que aplica reglas de trading a datos históricos para 
+                      cuantificar el rendimiento esperado de una estrategia. Es análogo a los ensayos clínicos en medicina: 
+                      <strong className="text-foreground"> prueba antes de usar en producción.</strong>
+                    </p>
+                  </div>
+
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-foreground mt-6">¿Por Qué es Crítico el Backtesting?</h4>
+                  <p className="text-muted-foreground leading-relaxed">
+                    El trading sin backtesting es como pilotar un avión sin haberlo probado antes. Puede funcionar, 
+                    pero las probabilidades de éxito son extremadamente bajas.
+                  </p>
+
+                  <div className="grid gap-3">
+                    <div className="flex gap-3 items-start bg-slate-100 dark:bg-background/50 p-3 rounded-lg">
+                      <span className="text-purple-400 font-bold">1</span>
+                      <div>
+                        <p className="font-semibold text-gray-900 dark:text-foreground">Validación Estadística</p>
+                        <p className="text-xs text-muted-foreground">Confirma si tu estrategia tiene una ventaja real o es solo suerte</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 items-start bg-slate-100 dark:bg-background/50 p-3 rounded-lg">
+                      <span className="text-purple-400 font-bold">2</span>
+                      <div>
+                        <p className="font-semibold text-gray-900 dark:text-foreground">Reducción de Riesgo</p>
+                        <p className="text-xs text-muted-foreground">Identifica estrategias deficientes antes de arriesgar capital real</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 items-start bg-slate-100 dark:bg-background/50 p-3 rounded-lg">
+                      <span className="text-purple-400 font-bold">3</span>
+                      <div>
+                        <p className="font-semibold text-gray-900 dark:text-foreground">Optimización de Parámetros</p>
+                        <p className="text-xs text-muted-foreground">Encuentra los mejores valores para tus indicadores sin adivinar</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 items-start bg-slate-100 dark:bg-background/50 p-3 rounded-lg">
+                      <span className="text-purple-400 font-bold">4</span>
+                      <div>
+                        <p className="font-semibold text-gray-900 dark:text-foreground">Confianza Psicológica</p>
+                        <p className="text-xs text-muted-foreground">Saber que funcionó históricamente te ayuda a seguir la estrategia en drawdowns</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-foreground mt-6">El Proceso de Backtesting</h4>
+                  <div className="bg-slate-50 dark:bg-background/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="space-y-3 text-sm">
+                      <div className="flex items-start gap-3">
+                        <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded font-bold">1</span>
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-foreground">Definir Estrategia</p>
+                          <p className="text-xs text-muted-foreground">Reglas claras, objetivas y replicables</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded font-bold">2</span>
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-foreground">Obtener Datos</p>
+                          <p className="text-xs text-muted-foreground">Mínimo 3-5 años de datos históricos de calidad</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded font-bold">3</span>
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-foreground">Simular Trading</p>
+                          <p className="text-xs text-muted-foreground">Aplicar reglas a cada barra/candlestick históricamente</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded font-bold">4</span>
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-foreground">Calcular Métricas</p>
+                          <p className="text-xs text-muted-foreground">Rentabilidad, drawdown, win rate, profit factor, etc.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded font-bold">5</span>
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-foreground">Analizar Resultados</p>
+                          <p className="text-xs text-muted-foreground">Identificar fortalezas, debilidades y áreas de mejora</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg p-4 mt-6">
+                    <p className="text-sm font-semibold text-purple-400 mb-2">🎯 Principio Fundamental</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Un backtest no predice el futuro, pero <strong className="text-foreground">te da evidencia estadística</strong>. 
+                      Si una estrategia funcionó consistentemente en 5 años de datos diversos, tienes razones para creer que 
+                      puede funcionar en el futuro. La diferencia entre un trader profesional y un amateur es que el profesional 
+                      <strong className="text-foreground"> nunca opera una estrategia sin backtestearla primero.</strong>
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Lección 2: Preparación de Datos Históricos */}
+          {activeLesson === 2 && (
+            <Card className="bg-white dark:bg-surface">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <span className="text-purple-400">2.</span>
+                  Preparación de Datos Históricos
+                </CardTitle>
+                <CardDescription>La calidad de tus datos determina la calidad de tus resultados</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                <p className="text-muted-foreground leading-relaxed">
+                  Los datos históricos son la base de todo backtesting. <strong className="text-foreground">Garbage in, garbage out</strong>: 
+                  si tus datos son de baja calidad, tus resultados serán engañosos, sin importar qué tan buena sea tu estrategia.
+                </p>
+
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                  <p className="text-sm text-red-300 font-semibold mb-2">⚠️ Error Crítico</p>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    La mayoría de los traders novatos usan datos gratuitos de baja calidad o datos incompletos. 
+                    Esto genera backtests que <strong className="text-foreground">sobreestiman el rendimiento</strong> y fallan completamente en vivo.
+                  </p>
+                </div>
+
+                <h5 className="text-lg font-semibold text-gray-900 dark:text-foreground mt-6">Requisitos de Datos de Calidad</h5>
+
+                <div className="space-y-4">
+                  <div className="bg-slate-50 dark:bg-background/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <h6 className="font-bold text-gray-900 dark:text-foreground mb-3 flex items-center gap-2">
+                      <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded">1</span>
+                      Completitud
+                    </h6>
+                    <p className="text-muted-foreground text-xs mb-3 leading-relaxed">
+                      <strong className="text-foreground">Sin gaps ni datos faltantes.</strong> Cada barra debe estar presente.
+                    </p>
+                    <div className="bg-red-500/10 border border-red-500/30 p-2 rounded text-xs">
+                      <p className="text-red-400 mb-1">❌ Datos con gaps:</p>
+                      <p className="text-muted-foreground">2020-01-15 10:00 → 2020-01-15 14:00 (falta 4 horas)</p>
+                      <p className="text-red-400 mt-2">→ El backtest puede saltarse operaciones importantes</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-background/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <h6 className="font-bold text-gray-900 dark:text-foreground mb-3 flex items-center gap-2">
+                      <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded">2</span>
+                      Precisión de Precios
+                    </h6>
+                    <p className="text-muted-foreground text-xs mb-3 leading-relaxed">
+                      <strong className="text-foreground">OHLC (Open, High, Low, Close) correctos.</strong> Precios deben ser reales de mercado.
+                    </p>
+                    <div className="bg-slate-100 dark:bg-slate-900/50 p-3 rounded mb-3">
+                      <p className="text-xs text-muted-foreground mb-2">Estructura correcta de cada barra:</p>
+                      <div className="font-mono text-xs text-green-400">
+                        <p>Timestamp: 2020-01-15 10:00</p>
+                        <p>Open: 1.1050</p>
+                        <p>High: 1.1065</p>
+                        <p>Low: 1.1045</p>
+                        <p>Close: 1.1060</p>
+                        <p>Volume: 15234</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-background/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <h6 className="font-bold text-gray-900 dark:text-foreground mb-3 flex items-center gap-2">
+                      <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded">3</span>
+                      Ajustes por Dividendos/Splits
+                    </h6>
+                    <p className="text-muted-foreground text-xs mb-3 leading-relaxed">
+                      Para acciones, los datos deben estar <strong className="text-foreground">ajustados</strong> por splits y dividendos.
+                    </p>
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 p-2 rounded text-xs">
+                      <p className="text-yellow-400">Ejemplo: Si Apple hizo un split 7:1 en 2020, los precios anteriores deben ajustarse</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-background/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <h6 className="font-bold text-gray-900 dark:text-foreground mb-3 flex items-center gap-2">
+                      <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded">4</span>
+                      Período Suficiente
+                    </h6>
+                    <p className="text-muted-foreground text-xs mb-3 leading-relaxed">
+                      <strong className="text-foreground">Mínimo 3-5 años de datos.</strong> Debe incluir diferentes condiciones de mercado.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-green-500/10 border border-green-500/30 p-2 rounded">
+                        <p className="text-green-400 font-semibold mb-1">✓ Buen período:</p>
+                        <p className="text-muted-foreground">2018-2023 (5 años: bull, bear, volatilidad)</p>
+                      </div>
+                      <div className="bg-red-500/10 border border-red-500/30 p-2 rounded">
+                        <p className="text-red-400 font-semibold mb-1">❌ Período corto:</p>
+                        <p className="text-muted-foreground">2021-2022 (solo bull market)</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-background/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <h6 className="font-bold text-gray-900 dark:text-foreground mb-3 flex items-center gap-2">
+                      <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded">5</span>
+                      Timeframe Consistente
+                    </h6>
+                    <p className="text-muted-foreground text-xs mb-3 leading-relaxed">
+                      Si tu estrategia opera en 1h, necesitas datos de <strong className="text-foreground">1 hora</strong>, no de 5 minutos agregados.
+                    </p>
+                  </div>
+                </div>
+
+                <h5 className="text-lg font-semibold text-gray-900 dark:text-foreground mt-6">Fuentes de Datos Recomendadas</h5>
+                <div className="space-y-2 text-xs">
+                  <div className="bg-blue-500/10 border border-blue-500/30 p-3 rounded">
+                    <p className="font-semibold text-blue-400 mb-1">Para Forex:</p>
+                    <p className="text-muted-foreground">OANDA, FXCM, Dukascopy (datos tick históricos)</p>
+                  </div>
+                  <div className="bg-green-500/10 border border-green-500/30 p-3 rounded">
+                    <p className="font-semibold text-green-400 mb-1">Para Acciones:</p>
+                    <p className="text-muted-foreground">Yahoo Finance, Alpha Vantage, Polygon.io (con ajustes)</p>
+                  </div>
+                  <div className="bg-purple-500/10 border border-purple-500/30 p-3 rounded">
+                    <p className="font-semibold text-purple-400 mb-1">Para Cripto:</p>
+                    <p className="text-muted-foreground">Binance API, CoinGecko, CryptoCompare</p>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg p-4 mt-6">
+                  <p className="text-sm font-semibold text-purple-400 mb-2">💡 Regla de Oro</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    <strong className="text-foreground">Invierte en datos de calidad.</strong> Pagar $50-100/mes por datos profesionales 
+                    es mucho más barato que perder $1000 en trading real usando datos malos. Los datos son la base de todo.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Lección 3: Métricas de Evaluación */}
+          {activeLesson === 3 && (
+            <Card className="bg-white dark:bg-surface">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <span className="text-purple-400">3.</span>
+                  Métricas de Evaluación
+                </CardTitle>
+                <CardDescription>Cómo medir el verdadero rendimiento de una estrategia</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                <p className="text-muted-foreground leading-relaxed">
+                  Las métricas de backtesting te dicen <strong className="text-foreground">cómo evaluar</strong> una estrategia objetivamente. 
+                  No todas las métricas son iguales: algunas son más importantes que otras.
+                </p>
+
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+                  <p className="text-sm text-orange-400 font-semibold mb-2">⚠️ Error Común</p>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    Muchos traders solo miran <strong className="text-foreground">"ganancia total"</strong> y ignoran drawdown, 
+                    win rate y otras métricas críticas. Una estrategia puede tener +100% de ganancia pero un drawdown del 80% 
+                    - es inviable psicológicamente.
+                  </p>
+                </div>
+
+                <h5 className="text-lg font-semibold text-gray-900 dark:text-foreground mt-6">Métricas Esenciales</h5>
+
+                <div className="space-y-4">
+                  <div className="bg-slate-50 dark:bg-background/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <h6 className="font-bold text-gray-900 dark:text-foreground">Profit Factor</h6>
+                      <span className="text-xs bg-green-500/30 px-2 py-1 rounded">Meta: &gt; 1.5</span>
+                    </div>
+                    <p className="text-muted-foreground text-xs mb-3 leading-relaxed">
+                      <strong className="text-foreground">Ganancia bruta / Pérdida bruta.</strong> Mide eficiencia de la estrategia.
+                    </p>
+                    <div className="bg-slate-100 dark:bg-slate-900/50 p-3 rounded font-mono text-xs text-green-400">
+                      <p>Profit Factor = $50,000 (ganancias) / $25,000 (pérdidas) = 2.0</p>
+                      <p className="text-muted-foreground mt-1">• PF &gt; 2.0 = Excelente</p>
+                      <p className="text-muted-foreground">• PF 1.5-2.0 = Bueno</p>
+                      <p className="text-muted-foreground">• PF &lt; 1.5 = Reconsiderar estrategia</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-background/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <h6 className="font-bold text-gray-900 dark:text-foreground">Sharpe Ratio</h6>
+                      <span className="text-xs bg-blue-500/30 px-2 py-1 rounded">Meta: &gt; 1.0</span>
+                    </div>
+                    <p className="text-muted-foreground text-xs mb-3 leading-relaxed">
+                      <strong className="text-foreground">Retorno ajustado por riesgo.</strong> Cuánto ganas por unidad de volatilidad.
+                    </p>
+                    <div className="bg-slate-100 dark:bg-slate-900/50 p-2 rounded text-xs">
+                      <p className="text-green-400">• Sharpe &gt; 2.0 = Excelente</p>
+                      <p className="text-blue-400">• Sharpe 1.0-2.0 = Bueno</p>
+                      <p className="text-yellow-400">• Sharpe 0.5-1.0 = Aceptable</p>
+                      <p className="text-red-400">• Sharpe &lt; 0.5 = Pobre (demasiado riesgo)</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-background/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <h6 className="font-bold text-gray-900 dark:text-foreground">Maximum Drawdown</h6>
+                      <span className="text-xs bg-red-500/30 px-2 py-1 rounded">Meta: &lt; 20%</span>
+                    </div>
+                    <p className="text-muted-foreground text-xs mb-3 leading-relaxed">
+                      <strong className="text-foreground">Mayor caída desde un pico.</strong> Indica el peor momento que experimentarías.
+                    </p>
+                    <div className="bg-red-500/10 border border-red-500/30 p-2 rounded text-xs">
+                      <p className="text-muted-foreground mb-1">Ejemplo:</p>
+                      <p className="text-green-400">• Capital inicial: $10,000</p>
+                      <p className="text-blue-400">• Pico máximo: $15,000</p>
+                      <p className="text-red-400">• Caída mínima: $12,000</p>
+                      <p className="text-orange-400 mt-1">→ Max Drawdown = (15,000 - 12,000) / 15,000 = 20%</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-background/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <h6 className="font-bold text-gray-900 dark:text-foreground">Win Rate</h6>
+                      <span className="text-xs bg-purple-500/30 px-2 py-1 rounded">Variable</span>
+                    </div>
+                    <p className="text-muted-foreground text-xs mb-3 leading-relaxed">
+                      <strong className="text-foreground">% de operaciones ganadoras.</strong> No es la métrica más importante.
+                    </p>
+                    <div className="bg-slate-100 dark:bg-slate-900/50 p-2 rounded text-xs">
+                      <p className="text-muted-foreground">• Win Rate 40% con R:R 1:3 = Rentable</p>
+                      <p className="text-muted-foreground">• Win Rate 70% con R:R 1:0.5 = Puede perder</p>
+                      <p className="text-orange-400 mt-1">→ El Win Rate debe evaluarse junto con el Risk:Reward</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-background/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <h6 className="font-bold text-gray-900 dark:text-foreground">Expectancy</h6>
+                      <span className="text-xs bg-green-500/30 px-2 py-1 rounded">Meta: &gt; 0</span>
+                    </div>
+                    <p className="text-muted-foreground text-xs mb-3 leading-relaxed">
+                      <strong className="text-foreground">Ganancia promedio esperada por operación.</strong> 
+                      (Win Rate × Avg Win) - (Loss Rate × Avg Loss)
+                    </p>
+                    <div className="bg-slate-100 dark:bg-slate-900/50 p-3 rounded font-mono text-xs text-green-400">
+                      <p>Expectancy = (0.60 × $100) - (0.40 × $50) = $40</p>
+                      <p className="text-muted-foreground mt-1">→ Cada operación genera $40 en promedio</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg p-4 mt-6">
+                  <p className="text-sm font-semibold text-purple-400 mb-2">🎯 Métricas Combinadas</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    <strong className="text-foreground">Nunca uses una sola métrica.</strong> Una estrategia debe tener:
+                    Profit Factor &gt; 1.5, Sharpe &gt; 1.0, Max Drawdown &lt; 20%, y Expectancy &gt; 0. 
+                    Si falla en alguna, reconsidera la estrategia.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Placeholder para lecciones restantes */}
+          {activeLesson > 3 && activeLesson <= 15 && (
+            <Card className="bg-white dark:bg-surface">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <span className="text-purple-400">{activeLesson}.</span>
+                  {lessons.find(l => l.id === activeLesson)?.title}
+                </CardTitle>
+                <CardDescription>Contenido en desarrollo</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Esta lección está siendo desarrollada. El contenido completo estará disponible pronto.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Botones de navegación entre lecciones */}
+          <div className="flex justify-between items-center gap-4">
+            <Button
+              onClick={goToPreviousLesson}
+              disabled={activeLesson === 1}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Lección Anterior
+            </Button>
+            
+            <span className="text-sm text-muted-foreground">
+              Lección {activeLesson} de {lessons.length}
+            </span>
+
+            <Button
+              onClick={goToNextLesson}
+              disabled={activeLesson === lessons.length}
+              className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
+            >
+              Siguiente Lección
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Conclusión del Bloque */}
+          <Card className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30">
+            <CardContent className="py-8">
+              <div className="text-center space-y-4">
+                <h3 className="text-xl font-bold text-foreground">🎓 ¡Felicitaciones!</h3>
+                <p className="text-muted-foreground max-w-2xl mx-auto">
+                  Has completado el bloque de Backtesting y Optimización. Ahora tienes las herramientas profesionales 
+                  para validar y optimizar tus estrategias de manera científica.
+                </p>
+                <div className="flex justify-center gap-4 mt-6">
+                  <Button variant="outline" className="border-purple-400 text-purple-400 hover:bg-purple-500/10" onClick={onBack}>
                     Volver a Bloques
                   </Button>
                 </div>

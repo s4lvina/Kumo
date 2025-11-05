@@ -161,8 +161,12 @@ export default function TradesList({ trades }: TradesListProps) {
                     >
                       {formatCurrency(trade.profit)}
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      {trade.profitPercent.toFixed(2)}%
+                    <div
+                      className={`text-sm font-semibold ${
+                        trade.profitPercent >= 0 ? 'text-green-400' : 'text-red-400'
+                      }`}
+                    >
+                      {trade.profitPercent >= 0 ? '+' : ''}{trade.profitPercent.toFixed(2)}%
                     </div>
                   </div>
                 </div>

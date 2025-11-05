@@ -27,19 +27,24 @@ export interface ConfiguredIndicator {
   label?: string;           // Etiqueta personalizada (ej: "RSI(14)")
 }
 
-// Valor de comparación: puede ser un número, variable o indicador
+// Valor de comparación: puede ser un número, variable, indicador o valor de mercado
 export interface ComparisonValue {
-  type: 'number' | 'variable' | 'indicator';
+  type: 'number' | 'variable' | 'indicator' | 'market_value';
   numericValue?: number;
   variableReference?: import('./variables').VariableReference;
   indicatorValue?: ConfiguredIndicator;
+  marketValue?: string;  // Tipo de valor de mercado (ej: 'close_price', 'volume', etc.)
 }
 
-// Regla de estrategia
+// Regla de estrategia expandida
 export interface StrategyRule {
   id: string;
-  indicator: ConfiguredIndicator;  // Indicador configurado
-  condition: string;               // Tipo de condición
+  valueType: 'indicator' | 'market_value' | 'position_state' | 'time_condition';  // Tipo de valor a evaluar
+  indicator?: ConfiguredIndicator;  // Indicador configurado (si valueType es 'indicator')
+  marketValue?: string;           // Valor de mercado (si valueType es 'market_value')
+  positionState?: string;         // Estado de posición (si valueType es 'position_state')
+  timeCondition?: string;         // Condición de tiempo (si valueType es 'time_condition')
+  condition: string;              // Tipo de condición
   comparisonValue: ComparisonValue; // Valor o indicador de comparación
   logicalOperator?: 'and' | 'or';  // Para conectar con la siguiente regla
 }

@@ -206,3 +206,5 @@ export const getAllIndicators = (): Indicator[] => {
   return INDICATOR_CATEGORIES.flatMap(category => category.indicators);
 };
 
+
+

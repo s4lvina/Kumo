@@ -7,15 +7,27 @@ interface BacktestMetricsPanelProps {
 }
 
 export default function BacktestMetricsPanel({ metrics }: BacktestMetricsPanelProps) {
-  const formatNumber = (num: number, decimals: number = 2) => {
+  // Validar que metrics exista
+  if (!metrics) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">No hay métricas disponibles</p>
+      </div>
+    )
+  }
+
+  const formatNumber = (num: number | undefined, decimals: number = 2) => {
+    if (num === undefined || num === null || isNaN(num)) return 'N/A'
     return num.toFixed(decimals)
   }
 
-  const formatCurrency = (num: number) => {
+  const formatCurrency = (num: number | undefined) => {
+    if (num === undefined || num === null || isNaN(num)) return '$0.00'
     return `$${num.toFixed(2)}`
   }
 
-  const formatPercent = (num: number) => {
+  const formatPercent = (num: number | undefined) => {
+    if (num === undefined || num === null || isNaN(num)) return '0.00%'
     return `${num.toFixed(2)}%`
   }
 
@@ -30,9 +42,9 @@ export default function BacktestMetricsPanel({ metrics }: BacktestMetricsPanelPr
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-orange-400">{metrics.totalTrades}</div>
+          <div className="text-2xl font-bold text-orange-400">{metrics.totalTrades ?? 0}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            {metrics.winningTrades}W / {metrics.losingTrades}L
+            {metrics.winningTrades ?? 0}W / {metrics.losingTrades ?? 0}L
           </p>
         </CardContent>
       </Card>

@@ -1,29 +1,21 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Play, Loader2, BarChart3, Calendar, DollarSign, Settings } from 'lucide-react'
 import { BacktestResult, BacktestConfig } from '@/types/backtesting'
 import BacktestMetricsPanel from '@/components/BacktestMetricsPanel'
 import EquityCurveChart from '@/components/EquityCurveChart'
+import EquityLineChart from '@/components/EquityLineChart'
 import TradeDistributionChart from '@/components/TradeDistributionChart'
 import TradesList from '@/components/TradesList'
 import BacktestDiagnostic from '@/components/BacktestDiagnostic'
 import { getAllStrategies, StoredStrategy } from '@/lib/strategyStorage'
 
-declare global {
-  interface Window {
-    TradingView: any
-  }
-}
-
 /**
  * Página: Backtesting
- * Panel completo de backtesting con TradingView y análisis de resultados
+ * Panel completo de backtesting con análisis de resultados
  */
 export default function Backtesting() {
-  const chartContainerRef = useRef<HTMLDivElement>(null)
-  const widgetRef = useRef<any>(null)
-  
   const [strategies, setStrategies] = useState<StoredStrategy[]>([])
   const [selectedStrategy, setSelectedStrategy] = useState<StoredStrategy | null>(null)
   const [isRunning, setIsRunning] = useState(false)
@@ -48,121 +40,6 @@ export default function Backtesting() {
       setSelectedStrategy(loadedStrategies[0])
     }
   }, [])
-
-  // Cargar script de TradingView una sola vez
-  useEffect(() => {
-    // Verificar si el script ya está cargado
-    if (window.TradingView) return
-
-    const script = document.createElement('script')
-    script.src = 'https://s3.tradingview.com/tv.js'
-    script.async = true
-    script.type = 'text/javascript'
-    document.head.appendChild(script)
-
-    return () => {
-      // Cleanup si es necesario
-      const scripts = document.querySelectorAll('script[src="https://s3.tradingview.com/tv.js"]')
-      scripts.forEach(s => s.remove())
-    }
-  }, [])
-
-  // Inicializar TradingView Widget cuando el script esté listo
-  useEffect(() => {
-    if (!chartContainerRef.current) return
-
-    const initWidget = () => {
-      if (!window.TradingView) {
-        // Si TradingView no está disponible, reintentar en 500ms
-        setTimeout(initWidget, 500)
-        return
-      }
-
-      // Limpiar widget anterior si existe
-      if (widgetRef.current) {
-        try {
-          widgetRef.current.remove()
-        } catch (e) {
-          console.log('Error removing widget:', e)
-        }
-        widgetRef.current = null
-      }
-
-      // Limpiar contenedor
-      if (chartContainerRef.current) {
-        chartContainerRef.current.innerHTML = ''
-      }
-
-      try {
-        // Mapear temporalidades al formato de TradingView
-        const intervalMap: Record<string, string> = {
-          '1': '1',
-          '5': '5',
-          '15': '15',
-          '30': '30',
-          '60': '60',
-          '1h': '60',
-          '240': '240',
-          '4h': '240',
-          'D': 'D',
-          '1d': 'D',
-          'W': 'W',
-          '1w': 'W'
-        }
-
-        const interval = intervalMap[config.timeframe] || '60'
-
-        widgetRef.current = new window.TradingView.widget({
-          autosize: true,
-          symbol: `FX_IDC:${config.symbol}`,
-          interval: interval,
-          timezone: 'Etc/UTC',
-          theme: 'dark',
-          style: '1',
-          locale: 'es',
-          toolbar_bg: '#1e293b',
-          enable_publishing: false,
-          allow_symbol_change: true,
-          container_id: 'tradingview_chart',
-          hide_top_toolbar: false,
-          hide_legend: false,
-          save_image: false,
-          disabled_features: [
-            'use_localstorage_for_settings',
-            'header_symbol_search',
-            'header_compare'
-          ],
-          overrides: {
-            'paneProperties.background': '#0B1120',
-            'paneProperties.backgroundType': 'solid',
-            'paneProperties.vertGridProperties.color': '#1e293b',
-            'paneProperties.horzGridProperties.color': '#1e293b',
-            'symbolWatermarkProperties.transparency': 90,
-            'scalesProperties.textColor': '#AAA'
-          }
-        })
-        
-        console.log('[TRADINGVIEW] Widget initialized successfully')
-      } catch (error) {
-        console.error('[TRADINGVIEW] Error initializing widget:', error)
-      }
-    }
-
-    // Esperar un momento antes de inicializar
-    const timeout = setTimeout(initWidget, 100)
-
-    return () => {
-      clearTimeout(timeout)
-      if (widgetRef.current) {
-        try {
-          widgetRef.current.remove()
-        } catch (e) {
-          console.log('Cleanup error:', e)
-        }
-        widgetRef.current = null
-      }
-    }
-  }, [config.symbol, config.timeframe])
 
   // Transformar estrategia del Designer al formato del BacktestEngine
   const transformStrategyForBacktest = (strategy: any) => {
@@ -214,9 +91,15 @@ export default function Backtesting() {
     }
 
     setIsRunning(true)
+    setBacktestResult(null) // Limpiar resultados anteriores
     
     try {
       const transformedStrategy = transformStrategyForBacktest(selectedStrategy)
+      
+      console.log('[BACKTEST] Enviando request...', {
+        strategy: transformedStrategy.name,
+        config
+      })
       
       const response = await fetch('http://localhost:8000/api/v1/backtest', {
         method: 'POST',
@@ -229,28 +112,91 @@ export default function Backtesting() {
         })
       })
       
-      const data = await response.json()
+      console.log('[BACKTEST] Response status:', response.status, response.statusText)
       
-      console.log('[BACKTEST] Response:', data)
+      // Leer el texto de la respuesta una sola vez
+      const responseText = await response.text()
+      console.log('[BACKTEST] Response text length:', responseText.length)
+      
+      // Verificar si la respuesta es exitosa
+      if (!response.ok) {
+        let errorMessage = `Error HTTP ${response.status}: ${response.statusText}`
+        try {
+          const errorData = JSON.parse(responseText)
+          errorMessage = errorData.detail || errorData.error || errorMessage
+        } catch (e) {
+          // Si no se puede parsear el error como JSON, usar el texto
+          if (responseText) {
+            errorMessage = responseText
+          }
+        }
+        console.error('[BACKTEST] HTTP Error:', errorMessage)
+        alert(`Error en el servidor: ${errorMessage}`)
+        setIsRunning(false)
+        return
+      }
+      
+      // Parsear JSON solo si la respuesta es exitosa
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('[BACKTEST] Error parsing JSON:', parseError)
+        console.error('[BACKTEST] Response text preview:', responseText.substring(0, 500))
+        alert('Error al procesar la respuesta del servidor. La respuesta no es JSON válido.')
+        setIsRunning(false)
+        return
+      }
+      
+      console.log('[BACKTEST] Response data:', data)
+      
+      // Validar estructura básica de la respuesta
+      if (!data || typeof data !== 'object') {
+        console.error('[BACKTEST] Invalid response structure:', data)
+        alert('Error: La respuesta del servidor tiene un formato inválido.')
+        setIsRunning(false)
+        return
+      }
       
       if (data.success) {
-        setBacktestResult(data)
-        console.log('[BACKTEST] Success! Total trades:', data.metrics?.totalTrades)
-        
-        // Mostrar diagnóstico automáticamente si no hay trades o hay problemas
-        if (data.metrics?.totalTrades === 0 || 
-            data.metrics?.winRate < 30 || 
-            data.metrics?.netProfit < 0) {
-          setShowDiagnostic(true)
+        // Validar que tenga las propiedades necesarias
+        if (!data.metrics || !data.trades || !data.equityCurve) {
+          console.error('[BACKTEST] Missing required fields:', {
+            hasMetrics: !!data.metrics,
+            hasTrades: !!data.trades,
+            hasEquityCurve: !!data.equityCurve
+          })
+          alert('Error: La respuesta del servidor está incompleta. Faltan datos del backtest.')
+          setIsRunning(false)
+          return
         }
+        
+        // Usar setTimeout para permitir que el UI se actualice antes de procesar datos grandes
+        setTimeout(() => {
+          setBacktestResult(data)
+          console.log('[BACKTEST] Success! Total trades:', data.metrics?.totalTrades)
+          
+          // Mostrar diagnóstico automáticamente si no hay trades o hay problemas
+          if (data.metrics?.totalTrades === 0 || 
+              data.metrics?.winRate < 30 || 
+              data.metrics?.netProfit < 0) {
+            setShowDiagnostic(true)
+          }
+        }, 0)
       } else {
         const errorMsg = data.error || 'Error desconocido en el backtest'
-        console.error('[BACKTEST] Error:', data)
+        console.error('[BACKTEST] Backtest failed:', data)
         alert(`Error en backtest: ${errorMsg}`)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[BACKTEST] Exception:', error)
-      alert('Error al conectar con el servidor. Asegúrate de que el backend esté ejecutándose.')
+      const errorMessage = error?.message || 'Error desconocido'
+      console.error('[BACKTEST] Error details:', {
+        name: error?.name,
+        message: errorMessage,
+        stack: error?.stack
+      })
+      alert(`Error al conectar con el servidor: ${errorMessage}\n\nAsegúrate de que el backend esté ejecutándose en http://localhost:8000`)
     } finally {
       setIsRunning(false)
     }
@@ -271,31 +217,19 @@ export default function Backtesting() {
         </div>
       </div>
 
-      {/* TradingView Chart */}
-      <Card className="bg-white dark:bg-surface border-slate-200 dark:border-slate-800">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg">Gráfico de Trading</CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">
-                Visualiza el mercado en tiempo real. Usa los controles de abajo para cambiar símbolo y temporalidad.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 bg-gradient-to-r from-primary/10 to-purple-600/10 px-4 py-2 rounded-lg border border-primary/30">
-              <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse"></div>
-              <span className="text-xs font-medium text-muted-foreground">TradingView Live</span>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div 
-            id="tradingview_chart"
-            ref={chartContainerRef}
-            style={{ height: '600px', position: 'relative' }}
-            className="rounded-lg overflow-hidden"
-          />
-        </CardContent>
-      </Card>
+      {/* Gráfico Temporal de Equity - Parte Superior */}
+      {backtestResult && 
+       backtestResult.success && 
+       backtestResult.equityCurve && 
+       backtestResult.equityCurve.length > 0 && 
+       backtestResult.metrics && 
+       backtestResult.metrics.initialBalance !== undefined && (
+        <EquityLineChart 
+          data={backtestResult.equityCurve} 
+          initialBalance={backtestResult.metrics.initialBalance}
+          trades={backtestResult.trades || []}
+        />
+      )}
 
       {/* Configuración del Backtest */}
       <Card className="bg-white dark:bg-surface border-slate-200 dark:border-slate-800">
@@ -452,42 +386,53 @@ export default function Backtesting() {
       {backtestResult && backtestResult.success && (
         <div className="space-y-6">
           {/* Resumen de Estrategia */}
-          <Card className="bg-gradient-to-r from-primary/10 to-purple-600/10 border-primary/30">
-            <CardContent className="py-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-bold text-orange-400">{backtestResult.strategyName}</h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {backtestResult.symbol} • {backtestResult.timeframe} • 
-                    {' '}{new Date(backtestResult.startDate).toLocaleDateString()} - {new Date(backtestResult.endDate).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <div className="text-3xl font-bold text-green-400">
-                    ${backtestResult.metrics.finalBalance.toFixed(2)}
+          {backtestResult.metrics && backtestResult.metrics.finalBalance !== undefined && (
+            <Card className="bg-gradient-to-r from-primary/10 to-purple-600/10 border-primary/30">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-orange-400">{backtestResult.strategyName || 'Estrategia'}</h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {backtestResult.symbol || 'N/A'} • {backtestResult.timeframe || 'N/A'} • 
+                      {' '}{backtestResult.startDate ? new Date(backtestResult.startDate).toLocaleDateString() : 'N/A'} - {backtestResult.endDate ? new Date(backtestResult.endDate).toLocaleDateString() : 'N/A'}
+                    </p>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    Balance Final
+                  <div className="text-right">
+                    <div className="text-3xl font-bold text-green-400">
+                      ${backtestResult.metrics.finalBalance.toFixed(2)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Balance Final
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Panel de Métricas */}
-          <BacktestMetricsPanel metrics={backtestResult.metrics} />
+          {backtestResult.metrics && (
+            <BacktestMetricsPanel metrics={backtestResult.metrics} />
+          )}
 
           {/* Gráficos */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <EquityCurveChart 
-              data={backtestResult.equityCurve} 
-              initialBalance={backtestResult.metrics.initialBalance}
-            />
-            <TradeDistributionChart trades={backtestResult.trades} />
-          </div>
+          {backtestResult.equityCurve && 
+           backtestResult.equityCurve.length > 0 && 
+           backtestResult.metrics && 
+           backtestResult.metrics.initialBalance !== undefined && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <EquityCurveChart 
+                data={backtestResult.equityCurve} 
+                initialBalance={backtestResult.metrics.initialBalance}
+              />
+              <TradeDistributionChart trades={backtestResult.trades || []} />
+            </div>
+          )}
 
           {/* Lista de Trades */}
-          <TradesList trades={backtestResult.trades} />
+          {backtestResult.trades && backtestResult.trades.length > 0 && (
+            <TradesList trades={backtestResult.trades} />
+          )}
         </div>
       )}
 

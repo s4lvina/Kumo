@@ -7,6 +7,7 @@ import Designer from './pages/Designer'
 import Strategies from './pages/Strategies'
 import Academy from './pages/Academy'
 import Backtesting from './pages/Backtesting'
+import Mercados from './pages/Mercados'
 
 /**
  * Componente principal de la aplicación Kumo
@@ -26,6 +27,7 @@ function App() {
           <Route path="/designer" element={<Layout><Designer /></Layout>} />
           <Route path="/strategies" element={<Layout><Strategies /></Layout>} />
           <Route path="/backtesting" element={<Layout><Backtesting /></Layout>} />
+          <Route path="/mercados" element={<Layout><Mercados /></Layout>} />
           <Route path="/academy" element={<Layout><Academy /></Layout>} />
         </Routes>
       </Router>

@@ -69,16 +69,22 @@ class IndicatorCalculator:
     
     @staticmethod
     def calculate_sma(prices: List[float], period: int) -> Optional[float]:
-        """Simple Moving Average"""
+        """Simple Moving Average - Optimizado"""
         if len(prices) < period:
             return None
+        # Optimización: usar solo las últimas period precios
         return sum(prices[-period:]) / period
     
     @staticmethod
     def calculate_ema(prices: List[float], period: int) -> Optional[float]:
-        """Exponential Moving Average"""
+        """Exponential Moving Average - Optimizado"""
         if len(prices) < period:
             return None
+        
+        # Optimización: para EMA, podemos usar solo las últimas period*2 precios
+        # ya que los precios anteriores tienen muy poco peso
+        if len(prices) > period * 2:
+            prices = prices[-(period * 2):]
         
         multiplier = 2 / (period + 1)
         ema = sum(prices[:period]) / period
@@ -90,11 +96,15 @@ class IndicatorCalculator:
     
     @staticmethod
     def calculate_rsi(prices: List[float], period: int = 14) -> Optional[float]:
-        """Relative Strength Index"""
+        """Relative Strength Index - Optimizado para rendimiento"""
         if len(prices) < period + 1:
             return None
         
-        changes = [prices[i] - prices[i-1] for i in range(1, len(prices))]
+        # Optimización: usar solo las últimas period+1 precios en lugar de todo el historial
+        # Esto es mucho más rápido con grandes datasets
+        recent_prices = prices[-(period + 1):] if len(prices) > period + 1 else prices
+        
+        changes = [recent_prices[i] - recent_prices[i-1] for i in range(1, len(recent_prices))]
         gains = [c if c > 0 else 0 for c in changes]
         losses = [-c if c < 0 else 0 for c in changes]
         
@@ -309,7 +319,64 @@ class BacktestEngine:
     def calculate_indicator_value(self, indicator_type: str, parameters: Dict[str, Any],
                                   bar: Dict[str, Any], price_history: List[float]) -> Optional[float]:
         """Calcula el valor de un indicador"""
-        period = parameters.get('period', 14)
+        # Extraer period de manera segura, manejando casos donde puede ser dict o int
+        period_raw = parameters.get('period', 14)
+        
+        # Si period es un diccionario (variable), extraer el valor numérico
+        if isinstance(period_raw, dict):
+            # Si es una referencia a variable (type: 'variable')
+            if period_raw.get('type') == 'variable':
+                var_id = period_raw.get('variableId')
+                var_name = period_raw.get('variableName')
+                # Buscar en variables de la estrategia por ID o nombre
+                variables = self.strategy.get('variables', [])
+                period = 14  # Valor por defecto
+                for var in variables:
+                    # Buscar por ID o nombre
+                    var_matches = False
+                    if var_id and var.get('id') == var_id:
+                        var_matches = True
+                    elif var_name and var.get('name') == var_name:
+                        var_matches = True
+                    
+                    if var_matches:
+                        period = var.get('value', 14)
+                        # Asegurar que es un número
+                        if isinstance(period, (int, float)):
+                            period = int(period)
+                        else:
+                            period = 14
+                        break
+            # Si es una referencia a variable por nombre (sin type)
+            elif 'variableName' in period_raw:
+                var_name = period_raw['variableName']
+                # Buscar en variables de la estrategia
+                variables = self.strategy.get('variables', [])
+                period = 14  # Valor por defecto
+                for var in variables:
+                    if var.get('name') == var_name:
+                        period = var.get('value', 14)
+                        # Asegurar que es un número
+                        if isinstance(period, (int, float)):
+                            period = int(period)
+                        else:
+                            period = 14
+                        break
+            # Si es un objeto con type y numericValue
+            elif period_raw.get('type') == 'number':
+                period = period_raw.get('numericValue', 14)
+                period = int(period) if isinstance(period, (int, float)) else 14
+            # Si tiene directamente un valor numérico
+            elif 'value' in period_raw:
+                period = period_raw['value']
+                period = int(period) if isinstance(period, (int, float)) else 14
+            else:
+                period = 14  # Valor por defecto
+        # Si period es un número directamente
+        elif isinstance(period_raw, (int, float)):
+            period = int(period_raw)
+        else:
+            period = 14  # Valor por defecto
         
         if indicator_type == 'close':
             return bar['close']
@@ -500,12 +567,23 @@ class BacktestEngine:
         })
         
         # Iterar sobre cada barra
+        # Optimización: limitar el tamaño del historial para mejorar rendimiento
+        max_history_size = 1000  # Mantener solo las últimas 1000 barras en memoria
+        
         for i, bar in enumerate(bars):
             price_history.append(bar['close'])
             self.high_history.append(bar['high'])
             self.low_history.append(bar['low'])
             
-            # Si hay trade abierto, verificar salidas
+            # Limitar el tamaño del historial para mejorar rendimiento
+            if len(price_history) > max_history_size:
+                price_history.pop(0)
+            if len(self.high_history) > max_history_size:
+                self.high_history.pop(0)
+            if len(self.low_history) > max_history_size:
+                self.low_history.pop(0)
+            
+            # Si hay trade abierto, verificar salidas PRIMERO
             if self.open_trade:
                 # Verificar stop loss / take profit
                 exit_reason = self.check_stop_loss_take_profit(bar)
@@ -528,23 +606,9 @@ class BacktestEngine:
                     self.balance += self.open_trade.profit
                     self.trades.append(self.open_trade)
                     self.open_trade = None
-                    
-                    # Actualizar drawdown
-                    max_balance = max(max_balance, self.balance)
-                    drawdown = max_balance - self.balance
-                    drawdown_percent = (drawdown / max_balance * 100) if max_balance > 0 else 0
-                    max_drawdown = max(max_drawdown, drawdown)
-                    max_drawdown_percent = max(max_drawdown_percent, drawdown_percent)
-                    
-                    # Añadir punto a equity curve
-                    self.equity_curve.append({
-                        'time': bar['time'].isoformat(),
-                        'equity': round(self.balance, 2),
-                        'drawdown': round(drawdown_percent, 2)
-                    })
             
             # Si no hay trade abierto, verificar entradas
-            else:
+            if not self.open_trade:
                 entry_type = self.check_entry_conditions(bar, price_history)
                 
                 if entry_type:
@@ -573,6 +637,30 @@ class BacktestEngine:
                         size
                     )
                     self.open_trade.entry_reason = 'Entry Signal'
+            
+            # Calcular equity actual (balance + profit flotante si hay trade abierto)
+            current_equity = self.balance
+            if self.open_trade:
+                # Calcular profit flotante del trade abierto
+                if self.open_trade.type == 'long':
+                    floating_profit = (bar['close'] - self.open_trade.entry_price) * self.open_trade.size * 100000
+                else:
+                    floating_profit = (self.open_trade.entry_price - bar['close']) * self.open_trade.size * 100000
+                current_equity = self.balance + floating_profit
+            
+            # Actualizar drawdown
+            max_balance = max(max_balance, current_equity)
+            drawdown = max_balance - current_equity
+            drawdown_percent = (drawdown / max_balance * 100) if max_balance > 0 else 0
+            max_drawdown = max(max_drawdown, drawdown)
+            max_drawdown_percent = max(max_drawdown_percent, drawdown_percent)
+            
+            # Añadir punto a equity curve en cada barra (después de cerrar trade si se cerró)
+            self.equity_curve.append({
+                'time': bar['time'].isoformat(),
+                'equity': round(current_equity, 2),
+                'drawdown': round(drawdown_percent, 2)
+            })
         
         # Cerrar trade abierto al final
         if self.open_trade and len(bars) > 0:

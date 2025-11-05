@@ -6,7 +6,8 @@ import {
   PenTool, 
   GraduationCap,
   Cloud,
-  BarChart3
+  BarChart3,
+  TrendingUp
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 // import ThemeToggle from './ThemeToggle'
@@ -42,6 +43,12 @@ const navigationItems = [
     label: 'Backtesting',
     icon: BarChart3,
     description: 'Prueba con datos históricos'
+  },
+  {
+    path: '/mercados',
+    label: 'Mercados',
+    icon: TrendingUp,
+    description: 'Visualiza gráficos en tiempo real'
   },
   {
     path: '/academy',

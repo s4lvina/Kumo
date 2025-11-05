@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EquityPoint } from '@/types/backtesting'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
@@ -9,6 +10,39 @@ interface EquityCurveChartProps {
 }
 
 export default function EquityCurveChart({ data }: EquityCurveChartProps) {
+  // Optimizar datos del gráfico: limitar puntos y memoizar
+  const optimizedData = useMemo(() => {
+    if (!data || data.length === 0) return []
+    
+    // Limitar a un máximo de 1000 puntos para evitar bloqueos
+    const maxPoints = 1000
+    if (data.length <= maxPoints) {
+      return data.map(point => ({
+        ...point,
+        time: new Date(point.time).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })
+      }))
+    }
+    
+    // Si hay más puntos, muestrear uniformemente
+    const step = Math.ceil(data.length / maxPoints)
+    const sampled = []
+    for (let i = 0; i < data.length; i += step) {
+      sampled.push({
+        ...data[i],
+        time: new Date(data[i].time).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })
+      })
+    }
+    // Asegurar que el último punto esté incluido
+    if (sampled[sampled.length - 1] !== data[data.length - 1]) {
+      sampled.push({
+        ...data[data.length - 1],
+        time: new Date(data[data.length - 1].time).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })
+      })
+    }
+    
+    return sampled
+  }, [data])
+
   const formatCurrency = (value: number) => `$${value.toFixed(2)}`
   
   const formatDate = (dateString: string) => {
@@ -35,6 +69,24 @@ export default function EquityCurveChart({ data }: EquityCurveChartProps) {
     return null
   }
 
+  if (!data || data.length === 0) {
+    return (
+      <Card className="bg-white dark:bg-surface border-slate-200 dark:border-slate-800">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-orange-400" />
+            Curva de Equity y Drawdown
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-64">
+            <p className="text-muted-foreground">No hay datos de equity para mostrar</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className="bg-white dark:bg-surface border-slate-200 dark:border-slate-800">
       <CardHeader>
@@ -45,7 +97,7 @@ export default function EquityCurveChart({ data }: EquityCurveChartProps) {
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={data}>
+          <LineChart data={optimizedData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
             <XAxis 
               dataKey="time" 

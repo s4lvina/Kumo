@@ -410,3 +410,5 @@ Combinaciones: 6 × 8 × 5 × 5 = 1200 estrategias
 
 **¡Gestiona tu riesgo como un profesional! 🎯🛡️**
 
+
+
